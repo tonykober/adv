@@ -8,7 +8,7 @@
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #000;
+            background-color: #2c3e50;
             font-family: 'Arial Black', sans-serif;
             touch-action: none;
             display: flex;
@@ -21,9 +21,9 @@
         
         #game-container {
             position: relative;
-            background-color: #1a1a1a;
+            background-color: #2c3e50;
             overflow: hidden;
-            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
             outline: none;
         }
 
@@ -48,8 +48,15 @@
             justify-content: space-between;
             align-items: flex-start;
         }
+        
+        .hud-left-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: flex-start;
+        }
 
-        #distance-badge {
+        .hud-badge {
             font-size: 20px;
             color: #ecf0f1;
             background: rgba(0, 0, 0, 0.6);
@@ -57,6 +64,13 @@
             border-radius: 12px;
             border: 1px solid #7f8c8d;
             box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            min-width: 80px;
+            text-align: center;
+        }
+        
+        #kills-badge {
+            border-color: #c0392b;
+            color: #ff7675;
         }
 
         #count-badge {
@@ -86,7 +100,6 @@
             border-radius: 10px;
         }
 
-        /* 右下角按鈕容器 - 預設隱藏 */
         .controls-container {
             position: absolute;
             bottom: 30px;
@@ -111,12 +124,8 @@
             align-items: center;
             transition: transform 0.1s, background 0.2s;
         }
-        .control-btn:hover {
-            background: rgba(255,255,255,0.2);
-        }
-        .control-btn:active {
-            transform: scale(0.9);
-        }
+        .control-btn:hover { background: rgba(255,255,255,0.2); }
+        .control-btn:active { transform: scale(0.9); }
         
         #pause-overlay {
             position: absolute;
@@ -159,11 +168,7 @@
             margin-top: 30px;
             text-transform: uppercase;
         }
-        .btn:focus { outline: none; }
-        .btn:active {
-            transform: translateY(6px);
-            box-shadow: 0 0 0 #d35400, 0 5px 10px rgba(0,0,0,0.4);
-        }
+        .btn:active { transform: translateY(6px); box-shadow: 0 0 0 #d35400, 0 5px 10px rgba(0,0,0,0.4); }
 
         .hidden { display: none !important; }
         
@@ -186,7 +191,10 @@
 
         <div id="ui">
             <div class="hud-header">
-                <div id="distance-badge">0 m</div>
+                <div class="hud-left-group">
+                    <div id="distance-badge" class="hud-badge">0 m</div>
+                    <div id="kills-badge" class="hud-badge">Kills: 0</div>
+                </div>
                 <div id="count-badge">Power: 1</div>
             </div>
             <div id="weapon-status">WEAPON: STANDARD</div>
@@ -201,7 +209,7 @@
 
         <div id="main-menu">
             <h1>衝出敵陣</h1>
-            <p>拖曳移動<br>閃避飛彈<br>加農砲 = 轟炸!</p>
+            <p>鍵盤移動<br>閃避飛彈<br>加農砲 = 轟炸!</p>
             <button class="btn" onclick="game.start(this)">開始遊戲</button>
             <div class="controls-hint">鍵盤支援: 方向鍵 / A D</div>
         </div>
@@ -215,43 +223,28 @@
     </div>
 
 <script>
-const CAMERA = {
-    height: 800,     
-    dist: 600,       
-    fov: 450,        
-    angle: 1.57,     
-    horizonY: 0.5    
-};
+const CAMERA = { height: 800, dist: 600, fov: 450, angle: 1.57, horizonY: 0.5 };
 
 const COLORS = {
-    sky: '#1e272e',      
-    ground: '#2f3640', 
-    grid: '#353b48',   
-    gridLight: '#7f8fa6',
-    enemy: '#d63031',
-    enemyElite: '#c0392b',
-    enemyBoss: '#8e44ad',
-    enemyDark: '#b71540',
-    bullet: '#00d2d3',    
-    powerupRapid: '#f1c40f',
-    powerupCannon: '#9b59b6', 
-    explosion: '#e67e22',
-    decor: '#192a56',
-    missile: '#e74c3c',   
-    warning: 'rgba(231, 76, 60, 0.4)',
-    tank: '#2ecc71',
-    median: '#f1c40f' // 分隔線顏色
+    sky: '#2c3e50', 
+    ground: '#34495e', 
+    grid: '#465c71', 
+    enemy: '#e74c3c', enemyElite: '#c0392b',
+    enemyBoss: '#8e44ad', enemyDark: '#a93226', bullet: '#00d2d3', bulletRapid: '#f1c40f', 
+    powerupRapid: '#f1c40f', powerupCannon: '#9b59b6', explosion: '#e67e22', decor: '#192a56', 
+    missile: '#e74c3c', warning: 'rgba(231, 76, 60, 0.4)', tank: '#2ecc71', median: '#f1c40f',
+    border: '#c0392b'
 };
 
 const RANKS = [
-    { name: '小兵', color: '#3498db', size: 10, hp: 1 },         
-    { name: '伍長', color: '#00cec9', size: 14, hp: 5 },         
-    { name: '班長', color: '#2ecc71', size: 18, hp: 25 },        
-    { name: '排長', color: '#f1c40f', size: 22, hp: 125 },       
-    { name: '連長', color: '#e67e22', size: 26, hp: 625 },       
-    { name: '少尉', color: '#e74c3c', size: 30, hp: 3125 },      
-    { name: '中尉', color: '#9b59b6', size: 34, hp: 15625 },     
-    { name: '上尉', color: '#ecf0f1', size: 38, hp: 78125 }      
+    { name: '小兵', color: '#3498db', size: 32, hp: 1 },         
+    { name: '伍長', color: '#00cec9', size: 40, hp: 5 },         
+    { name: '班長', color: '#2ecc71', size: 48, hp: 25 },        
+    { name: '排長', color: '#f1c40f', size: 56, hp: 125 },       
+    { name: '連長', color: '#e67e22', size: 64, hp: 625 },       
+    { name: '少尉', color: '#e74c3c', size: 72, hp: 3125 },      
+    { name: '中尉', color: '#9b59b6', size: 80, hp: 15625 },     
+    { name: '上尉', color: '#ecf0f1', size: 88, hp: 78125 }      
 ];
 
 const canvas = document.getElementById('canvas');
@@ -262,178 +255,243 @@ let width, height;
 function resize() {
     const targetRatio = 9 / 16;
     const windowRatio = window.innerWidth / window.innerHeight;
-
-    if (windowRatio > targetRatio) {
-        height = window.innerHeight;
-        width = height * targetRatio;
-    } else {
-        width = window.innerWidth;
-        height = width / targetRatio;
-    }
-
-    container.style.width = width + 'px';
-    container.style.height = height + 'px';
-    canvas.width = width;
-    canvas.height = height;
+    if (windowRatio > targetRatio) { height = window.innerHeight; width = height * targetRatio; } 
+    else { width = window.innerWidth; height = width / targetRatio; }
+    container.style.width = width + 'px'; container.style.height = height + 'px';
+    canvas.width = width; canvas.height = height;
 }
 window.addEventListener('resize', resize);
 resize();
 
-class Vector3 {
-    constructor(x, y, z) { this.x = x; this.y = y; this.z = z; }
-}
-
 function project(p) {
-    const camX = 0;
-    const pZ = game ? game.playerZ : 0;
+    const camX = 0; const pZ = game ? game.playerZ : 0;
+    const relZ = p.z - pZ; const depth = CAMERA.dist + relZ; 
+    if (depth <= 0) return { x: 0, y: 0, scale: 0, visible: false };
     
-    if (CAMERA.angle > 1.5) {
-        const relZ = p.z - pZ; 
-        const depth = CAMERA.dist + relZ; 
-        
-        if (depth <= 0) return { x: 0, y: 0, scale: 0, visible: false };
+    const scale = CAMERA.fov / depth;
+    const curve = game ? game.curve : 0;
+    const curveShift = curve * (relZ * relZ) * 0.00005;
 
-        const scale = CAMERA.fov / depth;
-        const relX = p.x - camX;
-        const screenX = width / 2 + relX * scale;
-        
-        const screenY = height * 0.75 - relZ * scale;
-        
-        return { x: screenX, y: screenY, scale: scale, visible: true, zIndex: depth };
-    } 
-    return { x: 0, y: 0, scale: 0, visible: false };
+    const screenX = width / 2 + (p.x - camX - curveShift) * scale;
+    const screenY = height * 0.75 - relZ * scale;
+    
+    return { x: screenX, y: screenY, scale: scale, visible: true, zIndex: depth };
 }
 
 // --- 遊戲實體類 ---
 
-class Tank {
-    constructor(game) {
-        this.game = game;
-        this.x = game.playerX - 100; 
-        this.z = 0; 
-        this.lifeTime = 600; 
-        this.maxLife = 600;
-        this.fireTimer = 0;
-        game.screenshake = 5;
+class Trap {
+    constructor(x, z, type) {
+        this.x = x; this.y = 0; this.z = z; this.type = type; this.active = true;
+        this.radius = 70; 
+        if (type === 'spike') this.radius = 100;
     }
-
     update() {
-        this.lifeTime--;
-        const targetX = this.game.playerX + Math.sin(this.game.frame * 0.02) * 120;
-        this.x += (targetX - this.x) * 0.05;
-        this.z = this.game.playerZ - 50; 
+         if (this.active && Math.abs(this.z - game.playerZ) < 150) {
+             let hit = false;
+             
+             game.soldiers.forEach(s => {
+                 if (!s.active) return;
+                 const sx = game.playerX + s.localX;
+                 const sz = game.playerZ + s.localZ;
+                 const dx = sx - this.x; 
+                 const dz = sz - this.z;
+                 
+                 // 判斷是否進入陷阱範圍
+                 if (dx*dx + dz*dz < this.radius * this.radius) {
+                     hit = true;
+                     if (this.type === 'mine') {
+                         s.takeDamage(100); 
+                     } else {
+                         // [修改 2] 地刺現在單次高傷害，且觸發後消失
+                         s.takeDamage(50);
+                     }
+                 }
+             });
 
-        this.fireTimer--;
-        if (this.fireTimer <= 0) {
-            this.fire();
-            this.fireTimer = 45; 
-        }
-        if (this.lifeTime <= 0) this.active = false;
+             // [修改 2] 地雷與地刺現在都是觸發一次後就失效
+             if (hit) {
+                 this.active = false; 
+                 if (this.type === 'mine') {
+                     // 地雷爆炸：紅橘色系火光
+                     game.createExplosion(this.x, this.z, 150, 0); 
+                     game.screenshake = 15; 
+                 } else {
+                     // 地刺崩毀：大量灰白色塵土
+                     for(let k=0; k<15; k++) {
+                         game.particles.push(new Particle(this.x, 5, this.z, '#bdc3c7', 2 + Math.random()*2, 20));
+                         game.particles.push(new Particle(this.x + (Math.random()-0.5)*50, 5, this.z + (Math.random()-0.5)*50, '#95a5a6', 1.5, 15));
+                     }
+                 }
+             }
+             
+             if (game.frame % 10 === 0) game.updateBadge(); 
+         }
     }
-
-    fire() {
-        const target = this.game.enemies.find(e => e.z > this.game.playerZ + 200 && e.active);
-        let vx = 0;
-        if (target) {
-            const dx = target.x - this.x;
-            const dz = target.z - this.z;
-            vx = (dx / dz) * 2; 
-        }
-        this.game.bullets.push(new Bullet(this.x, 25, this.z + 50, vx, 'cannon', 4)); 
-        this.game.screenshake = 2;
-    }
-
     draw(ctx) {
         const p = project({x: this.x, y: 0, z: this.z});
         if (!p.visible) return;
-        const size = 50 * p.scale;
-        const alpha = Math.min(1, this.lifeTime / 60); 
-        ctx.globalAlpha = alpha;
-        ctx.fillStyle = '#27ae60';
-        ctx.fillRect(p.x - size/2, p.y - size/2, size, size*0.8);
-        ctx.fillStyle = '#1e272e';
-        ctx.fillRect(p.x - size*0.6, p.y - size/2, size*0.2, size*0.8);
-        ctx.fillRect(p.x + size*0.4, p.y - size/2, size*0.2, size*0.8);
-        ctx.fillStyle = '#2ecc71';
+        const s = this.radius * p.scale;
+        
+        ctx.save();
+        
+        ctx.setLineDash([5 * p.scale, 5 * p.scale]);
+        ctx.strokeStyle = this.type === 'mine' ? 'rgba(231, 76, 60, 0.8)' : 'rgba(149, 165, 166, 0.8)';
+        ctx.lineWidth = 2 * p.scale;
+        
         ctx.beginPath();
-        ctx.arc(p.x, p.y - size*0.1, size*0.3, 0, Math.PI*2);
-        ctx.fill();
-        ctx.strokeStyle = '#2d3436';
-        ctx.lineWidth = 8 * p.scale;
-        ctx.beginPath();
-        ctx.moveTo(p.x, p.y - size*0.1);
-        ctx.lineTo(p.x, p.y - size*0.8);
+        ctx.ellipse(p.x, p.y, s, s * 0.3, 0, 0, Math.PI * 2);
         ctx.stroke();
+        
+        ctx.setLineDash([]); 
+
+        if (this.type === 'mine') {
+             ctx.fillStyle = '#c0392b';
+             ctx.beginPath(); 
+             ctx.ellipse(p.x, p.y, s*0.6, s*0.18, 0, 0, Math.PI*2); 
+             ctx.fill();
+             
+             ctx.fillStyle = '#922b21';
+             ctx.beginPath();
+             ctx.ellipse(p.x, p.y + 4*p.scale, s*0.6, s*0.18, 0, 0, Math.PI);
+             ctx.fill();
+
+             const blink = Math.sin(game.frame * 0.2) > 0;
+             ctx.fillStyle = blink ? '#f1c40f' : '#333'; 
+             ctx.beginPath(); 
+             ctx.ellipse(p.x, p.y - 2*p.scale, s*0.2, s*0.06, 0, 0, Math.PI*2); 
+             ctx.fill();
+             
+        } else { 
+             ctx.fillStyle = '#7f8c8d';
+             
+             const spikeCount = 6;
+             const spikeSize = s * 0.4;
+             
+             const offsets = [
+                 {x:0, z:0}, {x:0.5, z:0.3}, {x:-0.5, z:-0.3}, 
+                 {x:0.4, z:-0.4}, {x:-0.4, z:0.4}, {x:0, z:0.6}
+             ];
+             
+             offsets.forEach(off => {
+                 const sx = p.x + off.x * s;
+                 const sy = p.y + off.z * (s * 0.3); 
+                 
+                 ctx.beginPath();
+                 ctx.moveTo(sx - spikeSize/2, sy);
+                 ctx.lineTo(sx, sy - spikeSize);
+                 ctx.lineTo(sx + spikeSize/2, sy);
+                 ctx.fill();
+             });
+        }
+        ctx.restore();
+    }
+}
+
+class Tank {
+    constructor(game, index) {
+        this.game = game; 
+        this.index = index;
+        const side = index % 2 === 0 ? -1 : 1;
+        const depth = Math.floor(index / 2);
+        this.targetOffsetX = side * (100 + depth * 60);
+        
+        this.x = game.playerX + this.targetOffsetX; 
+        this.z = game.playerZ - 100; 
+        this.lifeTime = 600; 
+        this.fireTimer = Math.random() * 45;
+    }
+    update() {
+        this.lifeTime--;
+        const targetX = this.game.playerX + this.targetOffsetX;
+        this.x += (targetX - this.x) * 0.1; 
+        this.z = this.game.playerZ - (60 + Math.floor(this.index/2) * 40); 
+        
+        if (--this.fireTimer <= 0) { this.fire(); this.fireTimer = 45; }
+        if (this.lifeTime <= 0) this.active = false;
+    }
+    fire() {
+        const target = this.game.enemies.find(e => e.z > this.game.playerZ + 200 && e.active);
+        let vx = target ? (target.x - this.x) / (target.z - this.z) * 2 : 0;
+        this.game.bullets.push(new Bullet(this.x, 25, this.z + 50, vx, 'cannon', 4)); 
+    }
+    draw(ctx) {
+        const p = project({x: this.x, y: 0, z: this.z}); if (!p.visible) return;
+        const size = 60 * p.scale; 
+        ctx.globalAlpha = Math.min(1, this.lifeTime / 60);
+        
+        ctx.fillStyle = '#27ae60'; ctx.fillRect(p.x - size/2, p.y - size/2, size, size*0.6); 
+        ctx.fillStyle = '#1e272e'; ctx.fillRect(p.x - size*0.6, p.y - size/2, size*0.2, size*0.6); 
+        ctx.fillRect(p.x + size*0.4, p.y - size/2, size*0.2, size*0.6);
+        ctx.fillStyle = '#2ecc71'; ctx.beginPath(); ctx.arc(p.x, p.y - size*0.2, size*0.35, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = '#2d3436'; ctx.lineWidth = 12 * p.scale; ctx.beginPath(); ctx.moveTo(p.x, p.y - size*0.2); ctx.lineTo(p.x, p.y - size); ctx.stroke();
         ctx.globalAlpha = 1.0;
     }
 }
 
 class PowerUp {
-    constructor(x, z) {
-        this.x = x; this.y = 0; this.z = z;
-        this.active = true;
-        this.size = 40;
-    }
+    constructor(x, z) { this.x = x; this.y = 0; this.z = z; this.active = true; this.size = 60; }
     update() {
-        this.y = 10 + Math.sin(game.frame * 0.1) * 5;
-        if (Math.abs(game.playerZ - this.z) < 30) {
-            if (Math.abs(game.playerX - this.x) < 50) {
-                this.active = false;
-                game.spawnTank();
-            }
-        }
+        this.y = 15 + Math.sin(game.frame * 0.1) * 8;
+        if (Math.abs(game.playerZ - this.z) < 60 && Math.abs(game.playerX - this.x) < 80) { this.active = false; game.spawnTank(); }
     }
     draw(ctx) {
-        const p = project({x: this.x, y: this.y, z: this.z});
-        if (!p.visible) return;
-        const s = this.size * p.scale;
-        ctx.fillStyle = '#3498db';
-        ctx.fillRect(p.x - s/2, p.y - s, s, s);
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2 * p.scale;
-        ctx.strokeRect(p.x - s/2, p.y - s, s, s);
-        ctx.fillStyle = '#fff';
-        ctx.font = `bold ${12 * p.scale}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.fillText("TANK", p.x, p.y - s/2);
+        const p = project({x: this.x, y: this.y, z: this.z}); if (!p.visible) return;
+        const s = this.size * p.scale; 
+        ctx.fillStyle = '#3498db'; ctx.beginPath(); ctx.moveTo(p.x - s/2, p.y - s); ctx.lineTo(p.x + s/2, p.y - s); ctx.lineTo(p.x + s/2, p.y); ctx.lineTo(p.x - s/2, p.y); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#ecf0f1'; ctx.lineWidth = 3 * p.scale; ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.font = `bold ${14 * p.scale}px Arial`; ctx.textAlign = 'center'; ctx.fillText("TANK", p.x, p.y - s/2);
     }
 }
 
 class Decor {
     constructor(x, z, type) {
-        this.x = x; this.y = 0; this.z = z;
-        this.type = type; 
-        this.size = 20 + Math.random() * 40;
-        this.color = type === 'tree' ? '#218c74' : (type === 'rock' ? '#7f8c8d' : '#2c3e50'); 
-        if (type === 'tree') this.color = Math.random() > 0.5 ? '#1B9C85' : '#218c74';
+        this.x = x; this.y = 0; this.z = z; this.type = type; 
+        if (type === 'mountain') {
+            this.size = 400 + Math.random() * 600;
+            this.color = '#3e4c5e'; 
+        } else if (type === 'cloud') {
+            this.size = 250 + Math.random() * 300;
+            this.color = 'rgba(236, 240, 241, 0.2)'; 
+        } else if (type === 'city') {
+            this.size = 120 + Math.random() * 200;
+            this.color = '#1c2833'; 
+        } else {
+            this.size = 20 + Math.random() * 40;
+            this.color = type === 'tree' ? '#27ae60' : '#95a5a6'; 
+        }
     }
     draw(ctx) {
-        const p = project({x: this.x, y: this.y, z: this.z});
-        if (!p.visible) return;
-        const s = this.size * p.scale;
+        const p = project({x: this.x, y: this.y, z: this.z}); if (!p.visible) return;
+        const s = this.size * p.scale; 
         ctx.fillStyle = this.color;
-        if (this.type === 'tree') {
-            const layers = 3;
-            for(let i=0; i<layers; i++) {
-                const layerScale = 1 - i * 0.2;
-                const layerY = p.y - (i * s * 0.5);
-                ctx.beginPath();
-                ctx.moveTo(p.x, layerY - s * layerScale);
-                ctx.lineTo(p.x - s * 0.5 * layerScale, layerY + s * 0.2 * layerScale);
-                ctx.lineTo(p.x + s * 0.5 * layerScale, layerY + s * 0.2 * layerScale);
-                ctx.fill();
+        
+        if (this.type === 'mountain') {
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y - s);
+            ctx.lineTo(p.x + s, p.y);
+            ctx.lineTo(p.x - s, p.y);
+            ctx.fill();
+        } else if (this.type === 'cloud') {
+            const cy = p.y - 700 * p.scale; 
+            ctx.beginPath();
+            ctx.arc(p.x, cy, s*0.5, 0, Math.PI*2);
+            ctx.arc(p.x + s*0.4, cy + s*0.1, s*0.3, 0, Math.PI*2);
+            ctx.arc(p.x - s*0.4, cy + s*0.1, s*0.3, 0, Math.PI*2);
+            ctx.fill();
+        } else if (this.type === 'city') {
+            ctx.fillRect(p.x - s*0.2, p.y - s, s*0.4, s);
+            ctx.fillRect(p.x - s*0.4, p.y - s*0.6, s*0.2, s*0.6);
+            ctx.fillRect(p.x + s*0.2, p.y - s*0.4, s*0.3, s*0.4);
+        } else if (this.type === 'tree') {
+            for(let i=0; i<3; i++) {
+                const ls = 1 - i * 0.2; const ly = p.y - (i * s * 0.5);
+                ctx.beginPath(); ctx.moveTo(p.x, ly - s * ls); ctx.lineTo(p.x - s * 0.5 * ls, ly + s * 0.2 * ls); ctx.lineTo(p.x + s * 0.5 * ls, ly + s * 0.2 * ls); ctx.fill();
             }
-            ctx.fillStyle = '#5D4037';
-            ctx.fillRect(p.x - s*0.1, p.y, s*0.2, s*0.3);
-        } else if (this.type === 'rock') {
-            ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(this.z * 0.01);
-            ctx.beginPath(); ctx.moveTo(-s/2, -s/3); ctx.lineTo(s/3, -s/2); ctx.lineTo(s/2, s/3); ctx.lineTo(-s/4, s/2); ctx.closePath(); ctx.fill();
-            ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.beginPath(); ctx.moveTo(-s/2, -s/3); ctx.lineTo(0, 0); ctx.lineTo(-s/4, s/2); ctx.fill();
-            ctx.restore();
+            ctx.fillStyle = '#795548'; ctx.fillRect(p.x - s*0.1, p.y, s*0.2, s*0.3);
         } else {
-            ctx.fillRect(p.x - s/2, p.y - s, s, s);
-            ctx.fillStyle = '#34495e'; ctx.fillRect(p.x - s/3, p.y - s*0.8, s/1.5, s/4);
-            ctx.fillStyle = '#00d2d3'; ctx.fillRect(p.x - s/4, p.y - s*0.4, s/8, s/8);
+            ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(this.z * 0.01);
+            ctx.beginPath(); ctx.moveTo(-s/2, -s/3); ctx.lineTo(s/3, -s/2); ctx.lineTo(s/2, s/3); ctx.lineTo(-s/4, s/2); ctx.closePath(); ctx.fill(); ctx.restore();
         }
     }
 }
@@ -441,105 +499,155 @@ class Decor {
 class Missile {
     constructor(game) {
         this.game = game;
-        this.targetX = game.playerX + (Math.random() - 0.5) * 200;
-        this.targetZ = game.playerZ + 600; 
+        
+        let attempts = 0;
+        let valid = false;
+        
+        while(!valid && attempts < 10) {
+            this.targetX = game.playerX + (Math.random() - 0.5) * 400; 
+            this.targetZ = game.playerZ + 600;
+            
+            valid = true;
+            for (let m of game.missiles) {
+                if (Math.abs(m.targetX - this.targetX) < 150) { 
+                    valid = false;
+                    break;
+                }
+            }
+            attempts++;
+        }
+        
         this.startZ = this.targetZ + 800;
-        this.x = this.targetX; this.z = this.startZ; this.y = 0;
-        this.progress = 0; this.speed = 0.015; this.active = true; this.radius = 120; 
+        this.x = this.targetX; this.z = this.startZ; this.y = 0; this.progress = 0; this.active = true;
     }
     update() {
-        this.progress += this.speed;
-        const t = this.progress;
-        this.z = this.startZ * (1-t) + this.targetZ * t;
-        this.y = 1000 * Math.sin(t * Math.PI); 
-        if (this.game.frame % 3 === 0) this.game.particles.push(new Particle(this.x, this.y, this.z, '#bdc3c7', 0.5));
+        this.progress += 0.015; const t = this.progress;
+        this.z = this.startZ * (1-t) + this.targetZ * t; this.y = 1000 * Math.sin(t * Math.PI); 
+        // 飛彈飛行時的軌跡粒子
+        if (this.game.frame % 3 === 0) this.game.particles.push(new Particle(this.x, this.y, this.z, '#bdc3c7', 0.5, 8));
         if (this.progress >= 1) { this.active = false; this.explode(); }
     }
     explode() {
-        this.game.createExplosion(this.x, this.targetZ, this.radius, 0); 
-        this.game.screenshake = 10;
-        let hitCount = 0;
+        const explosionRadius = 120;
+        this.game.createExplosion(this.x, this.targetZ, explosionRadius, 0); 
+        this.game.screenshake = 5;
+        let hc = 0;
         this.game.soldiers.forEach(s => {
-             const worldX = this.game.playerX + s.localX; const worldZ = this.game.playerZ + s.localZ;
-             const dx = worldX - this.targetX; const dz = worldZ - this.targetZ;
-             if (dx*dx + dz*dz < this.radius * this.radius) hitCount++;
+             const dx = (this.game.playerX + s.localX) - this.targetX; const dz = (this.game.playerZ + s.localZ) - this.targetZ;
+             const soldierRadius = RANKS[s.rank].size * 0.5;
+             if (Math.sqrt(dx*dx + dz*dz) < explosionRadius + soldierRadius) hc++;
         });
-        if (hitCount > 0) {
-            let damage = Math.ceil(hitCount * 0.5); damage = Math.max(3, damage);
-            this.game.removeSoldiers(damage);
-        }
+        if (hc > 0) this.game.removeSoldiers(Math.max(3, Math.ceil(hc * 0.5)));
     }
     draw(ctx) {
-        const pTarget = project({x: this.targetX, y: 0, z: this.targetZ});
-        if (pTarget.visible) {
-            const scaleP = this.progress; const pulse = 1 + Math.sin(this.game.frame * 0.5) * 0.1;
-            ctx.save(); ctx.translate(pTarget.x, pTarget.y); ctx.scale(1, 0.5); 
-            ctx.strokeStyle = COLORS.missile; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, this.radius * pTarget.scale * (2 - scaleP), 0, Math.PI*2); ctx.stroke();
-            ctx.fillStyle = COLORS.warning; ctx.beginPath(); ctx.arc(0, 0, this.radius * pTarget.scale * pulse, 0, Math.PI*2); ctx.fill(); ctx.restore();
+        const pt = project({x: this.targetX, y: 0, z: this.targetZ});
+        if (pt.visible) {
+            ctx.save(); ctx.translate(pt.x, pt.y); ctx.scale(1, 0.5); 
+            ctx.strokeStyle = COLORS.missile; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, 120 * pt.scale * (2 - this.progress), 0, Math.PI*2); ctx.stroke();
+            ctx.fillStyle = COLORS.warning; ctx.beginPath(); ctx.arc(0, 0, 120 * pt.scale, 0, Math.PI*2); ctx.fill(); ctx.restore();
         }
-        const p = project({x: this.x, y: this.y, z: this.z});
-        if (p.visible) {
-            const size = 30 * p.scale; ctx.fillStyle = '#ecf0f1'; ctx.save(); ctx.translate(p.x, p.y);
-            ctx.beginPath(); ctx.ellipse(0, 0, size/3, size, 0, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = COLORS.missile; ctx.beginPath(); ctx.arc(0, size*0.8, size/3, 0, Math.PI, true); ctx.fill();
-            ctx.fillStyle = '#7f8c8d'; ctx.beginPath(); ctx.moveTo(-size/3, -size/2); ctx.lineTo(-size/1.5, -size); ctx.lineTo(size/1.5, -size); ctx.lineTo(size/3, -size/2); ctx.fill();
-            ctx.restore();
-        }
+        const p = project({x: this.x, y: this.y, z: this.z}); if (!p.visible) return;
+        const size = 30 * p.scale; ctx.save(); ctx.translate(p.x, p.y);
+        ctx.fillStyle = '#ecf0f1'; ctx.beginPath(); ctx.ellipse(0, 0, size/3, size, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = COLORS.missile; ctx.beginPath(); ctx.arc(0, size*0.8, size/3, 0, Math.PI, true); ctx.fill();
+        ctx.restore();
     }
 }
 
 class Soldier {
     constructor(game, offsetIndex, rank = 0) {
-        this.game = game; this.active = true; this.rank = rank; this.offsetX = 0; this.offsetZ = 0;
-        this.recalculateOffset(offsetIndex);
+        this.game = game; this.active = true; this.rank = rank; this.recalculateOffset(offsetIndex);
         this.localX = (Math.random() - 0.5) * 50; this.localZ = (Math.random() - 0.5) * 50;
         this.bobOffset = Math.random() * Math.PI * 2; this.gunRecoil = 0;
+        this.walkCycle = 0;
+        this.fireTimer = Math.random() * 20;
+        
+        this.hp = RANKS[this.rank].hp;
+        this.maxHp = this.hp;
     }
+    
+    takeDamage(amount) {
+        this.hp -= amount;
+        if (this.hp <= 0) {
+            this.active = false;
+        }
+    }
+
     recalculateOffset(index) {
-        const spacing = 20; const goldenAngle = Math.PI * (3 - Math.sqrt(5));
-        const r = spacing * Math.sqrt(index); const theta = index * goldenAngle;
+        const r = 22 * Math.sqrt(index); 
+        const theta = index * Math.PI * (3 - Math.sqrt(5));
         this.offsetX = r * Math.cos(theta); this.offsetZ = r * Math.sin(theta);
     }
     update(dt) {
-        const lerp = 0.1; this.localX += (this.offsetX - this.localX) * lerp; this.localZ += (this.offsetZ - this.localZ) * lerp;
+        this.localX += (this.offsetX - this.localX) * 0.1; this.localZ += (this.offsetZ - this.localZ) * 0.1;
         if (this.gunRecoil > 0) this.gunRecoil -= dt * 10;
-        let fireRate = 20; if (this.game.weaponType === 'rapid') fireRate = 8; if (this.game.weaponType === 'cannon') fireRate = 40; 
-        if (this.game.frame % fireRate === 0 && Math.random() > 0.2) this.shoot();
+        this.walkCycle += 0.2;
+        
+        let fireRate = 20; 
+        if (this.game.weaponType === 'rapid') fireRate = 8; 
+        if (this.game.weaponType === 'cannon') fireRate = 40; 
+        
+        this.fireTimer -= 1;
+        if (this.fireTimer <= 0) {
+            this.shoot();
+            this.fireTimer = fireRate + Math.random() * 5;
+        }
     }
     shoot() {
-        const worldPos = { x: this.game.playerX + this.localX, y: 0, z: this.game.playerZ + this.localZ };
-        const rankData = RANKS[this.rank]; const powerScale = Math.pow(2, this.rank); 
-        if (this.game.weaponType === 'cannon') {
-            this.game.bullets.push(new Bullet(worldPos.x, 15, worldPos.z, 0, 'cannon', powerScale)); this.gunRecoil = 10;
-        } else {
-            if (this.rank >= 2) {
-                 this.game.bullets.push(new Bullet(worldPos.x, 15, worldPos.z, -0.1, 'normal', powerScale));
-                 this.game.bullets.push(new Bullet(worldPos.x, 15, worldPos.z, 0.1, 'normal', powerScale));
-            } else this.game.bullets.push(new Bullet(worldPos.x, 15, worldPos.z, 0, 'normal', powerScale));
+        const wp = { x: this.game.playerX + this.localX, y: 15, z: this.game.playerZ + this.localZ };
+        const ps = Math.pow(2, this.rank); 
+        const wType = this.game.weaponType;
+        if (wType === 'cannon') { 
+            this.game.bullets.push(new Bullet(wp.x, wp.y, wp.z, 0, 'cannon', ps)); 
+            this.gunRecoil = 10; 
+        } 
+        else if (wType === 'rapid') {
+             this.game.bullets.push(new Bullet(wp.x, wp.y, wp.z, (Math.random()-0.5)*0.1, 'rapid', ps));
+             this.gunRecoil = 3;
+        }
+        else {
+            if (this.rank >= 2) { 
+                this.game.bullets.push(new Bullet(wp.x, wp.y, wp.z, -0.1, 'normal', ps)); 
+                this.game.bullets.push(new Bullet(wp.x, wp.y, wp.z, 0.1, 'normal', ps)); 
+            } else {
+                this.game.bullets.push(new Bullet(wp.x, wp.y, wp.z, 0, 'normal', ps));
+            }
             this.gunRecoil = 4;
         }
     }
     draw(ctx) {
-        const worldX = this.game.playerX + this.localX; const worldZ = this.game.playerZ + this.localZ;
-        const p = project({x: worldX, y: 0, z: worldZ}); if (!p.visible) return;
-        const rankInfo = RANKS[this.rank]; const size = rankInfo.size * p.scale;
+        const p = project({x: this.game.playerX + this.localX, y: 0, z: this.game.playerZ + this.localZ}); if (!p.visible) return;
+        const info = RANKS[this.rank]; const size = info.size * p.scale;
         const jumpY = Math.abs(Math.sin(this.game.frame * 0.25 + this.bobOffset)) * 4 * p.scale;
-        ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(p.x, p.y, size * 0.8, size * 0.4, 0, 0, Math.PI * 2); ctx.fill();
         const bodyY = p.y - size - jumpY;
-        ctx.fillStyle = '#2c3e50'; ctx.fillRect(p.x - size*0.4, bodyY + size*0.2, size*0.8, size*0.6);
-        if (this.game.weaponType === 'rapid') ctx.fillStyle = '#f1c40f'; 
-        else if (this.game.weaponType === 'cannon') ctx.fillStyle = '#9b59b6'; else ctx.fillStyle = '#34495e'; 
-        ctx.beginPath(); ctx.roundRect(p.x - size/2, bodyY, size, size, size*0.2); ctx.fill();
-        ctx.fillStyle = rankInfo.color; ctx.beginPath(); ctx.arc(p.x, bodyY, size * 0.6, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#2d3436'; ctx.fillRect(p.x - size*0.4, bodyY + size*0.1, size*0.8, size*0.25);
+
+        const legOffset = Math.sin(this.walkCycle) * size * 0.2;
+        ctx.fillStyle = '#7f8c8d'; // 腿部
+        ctx.fillRect(p.x - size*0.2, bodyY + size*0.8, size*0.15, size*0.4 + legOffset); 
+        ctx.fillRect(p.x + size*0.05, bodyY + size*0.8, size*0.15, size*0.4 - legOffset); 
+
+        ctx.fillStyle = '#dfe6e9'; // 身體
+        ctx.fillRect(p.x - size*0.3, bodyY + size*0.35, size*0.6, size*0.5); 
+        
         const recoil = this.gunRecoil * p.scale;
-        if (this.rank >= 2) {
-             ctx.fillRect(p.x - size*0.6, bodyY + size*0.4 + recoil, size*0.2, size*0.7);
-             ctx.fillRect(p.x + size*0.4, bodyY + size*0.4 + recoil, size*0.2, size*0.7);
-        } else ctx.fillRect(p.x + size*0.2, bodyY + size*0.4 + recoil, size*0.3, size*0.8);
-        if (this.rank >= 1) {
-            ctx.fillStyle = '#fff'; ctx.font = `bold ${10*p.scale}px Arial`; ctx.textAlign = 'center';
-            ctx.fillText(this.rank, p.x, bodyY - 8 * p.scale);
+        ctx.fillStyle = '#7f8c8d'; 
+        ctx.fillRect(p.x + size*0.2, bodyY + size*0.4, size*0.15, size*0.3);
+        ctx.fillStyle = '#2d3436'; 
+        ctx.fillRect(p.x + size*0.3, bodyY + size*0.5 + recoil, size*0.1, size*0.5);
+
+        ctx.fillStyle = info.color;
+        ctx.beginPath(); 
+        ctx.arc(p.x, bodyY + size*0.25, size*0.3, Math.PI, 0); 
+        ctx.lineTo(p.x + size*0.3, bodyY + size*0.5);
+        ctx.lineTo(p.x - size*0.3, bodyY + size*0.5);
+        ctx.fill();
+        
+        ctx.fillStyle = '#f1c40f'; 
+        ctx.fillRect(p.x - size*0.15, bodyY + size*0.35, size*0.3, size*0.1);
+
+        if (this.rank >= 1) { 
+            ctx.fillStyle = '#fff'; ctx.font = `bold ${12*p.scale}px Arial`; 
+            ctx.textAlign = 'center'; ctx.fillText(this.rank, p.x, bodyY - 10 * p.scale); 
         }
     }
 }
@@ -548,18 +656,26 @@ class Bullet {
     constructor(x, y, z, vx, type, powerScale = 1) {
         this.x = x; this.y = y; this.z = z; this.vx = vx * 20; this.type = type; this.speed = type === 'cannon' ? 35 : 50; this.powerScale = powerScale; this.active = true;
     }
-    update() {
-        this.z += this.speed; this.x += this.vx;
-        if (this.z > game.cameraZ + 1500) this.active = false;
-    }
+    update() { this.z += this.speed; this.x += this.vx; if (this.z > game.cameraZ + 1500) this.active = false; }
     draw(ctx) {
         const p = project({x: this.x, y: this.y, z: this.z}); if (!p.visible) return;
+        
         if (this.type === 'cannon') {
-            const size = (8 + this.powerScale) * p.scale; ctx.fillStyle = '#ff6b6b'; ctx.beginPath(); ctx.arc(p.x, p.y, size, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(p.x, p.y, size * 0.5, 0, Math.PI * 2); ctx.fill();
-        } else {
-            const size = 4 * p.scale; ctx.strokeStyle = COLORS.bullet; ctx.lineWidth = size * (this.powerScale > 1 ? 1.5 : 1); ctx.lineCap = 'round';
-            ctx.beginPath(); ctx.moveTo(p.x, p.y); const tail = project({x: this.x - this.vx, y: this.y, z: this.z - 40}); ctx.lineTo(tail.x, tail.y); ctx.stroke();
+            ctx.shadowBlur = 10; ctx.shadowColor = '#e74c3c';
+            ctx.fillStyle = '#ff6b6b'; ctx.beginPath(); ctx.arc(p.x, p.y, (12+this.powerScale)*p.scale, 0, Math.PI*2); ctx.fill();
+            ctx.shadowBlur = 0;
+        } 
+        else if (this.type === 'rapid') {
+            ctx.fillStyle = COLORS.bulletRapid; 
+            ctx.beginPath(); ctx.ellipse(p.x, p.y, 6*p.scale, 12*p.scale, 0, 0, Math.PI*2); ctx.fill();
+        } 
+        else {
+            ctx.strokeStyle = COLORS.bullet; ctx.lineWidth = 8 * p.scale; ctx.beginPath(); ctx.moveTo(p.x, p.y); 
+            const tail = project({x: this.x - this.vx, y: this.y, z: this.z - 40}); 
+            ctx.lineTo(tail.x, tail.y); ctx.stroke();
+            
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 3 * p.scale; 
+            ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(tail.x, tail.y); ctx.stroke();
         }
     }
 }
@@ -568,94 +684,154 @@ class Enemy {
     constructor(x, z, type, behavior = 'normal', snakeIndex = 0) {
         this.x = x; this.y = 0; this.z = z;
         this.baseX = x; this.type = type; this.behavior = behavior; this.snakeIndex = snakeIndex; 
+        this.lane = x < 0 ? 1 : 2; this.active = true; this.hitFlash = 0;
+        this.walkCycle = Math.random() * 10;
         
-        // [新增 3] 線道分配：1=左, 2=右
-        this.lane = x < 0 ? 1 : 2;
+        let bh = (type === 'boss') ? 300 : (type === 'elite' ? 10 : 2); 
+        let tp = game.getTotalPower();
+        const sc = 1 + (tp / 150) * 0.35;
+        this.hp = Math.floor(bh * sc);
+        this.maxHp = this.hp;
 
-        this.wanderOffset = 0; this.wanderTarget = 0; this.isMoving = true; this.moveTimer = Math.random() * 60;
-        if (type === 'boss') { this.width = 100; this.height = 120; this.hp = 150; } 
-        else if (type === 'elite') { this.width = 50; this.height = 60; this.hp = 5; } 
-        else { this.width = 40; this.height = 50; this.hp = 1; }
-        this.maxHp = this.hp; this.active = true; this.hitFlash = 0;
+        if (type === 'boss') { this.width = 160; this.height = 180; } 
+        else if (type === 'elite') { this.width = 80; this.height = 80; } 
+        else { this.width = 60; this.height = 60; }
     }
-    
     update() {
-        // [修改 3] 線道邊界限制
-        const laneMin = this.lane === 1 ? -320 : 30;
-        const laneMax = this.lane === 1 ? -30 : 320;
-
-        if (this.behavior === 'charge') {
-            this.z -= 4; this.x += (Math.random()-0.5) * 5;
-        } else if (this.behavior === 'snake') {
+        const ln = this.lane === 1 ? -320 : 30; const lx = this.lane === 1 ? -30 : 320;
+        
+        if (this.behavior === 'charge') { 
+            this.z -= 4; this.x += (Math.random()-0.5) * 5; 
+        } 
+        else if (this.behavior === 'snake') {
             this.z -= 2; 
-            // 蛇行幅度限制在線道內
-            const waveWidth = (laneMax - laneMin) * 0.4;
-            const waveCenter = (laneMax + laneMin) / 2;
-            this.x = waveCenter + Math.sin(game.frame * 0.05 + this.snakeIndex * 0.5) * waveWidth;
-        } else if (this.behavior === 'pincer') {
-            this.z -= 3;
-            // 往所屬線道的中間靠攏
-            const laneCenter = (laneMax + laneMin) / 2;
-            this.x += (laneCenter - this.x) * 0.05;
-        } else if (this.type !== 'boss') { 
-            this.moveTimer--;
-            if (this.moveTimer <= 0) {
-                this.moveTimer = 60 + Math.random() * 60;
-                this.isMoving = !this.isMoving; 
-                if(this.isMoving) this.wanderTarget = (Math.random() - 0.5) * 80; 
-            }
-            this.wanderOffset += (this.wanderTarget - this.wanderOffset) * 0.05;
-            this.x = this.baseX + this.wanderOffset;
-            if (this.isMoving) this.z -= 1.5; 
+            const ww = (lx - ln) * 0.4; const wc = (lx + ln) / 2;
+            this.x = wc + Math.sin(game.frame * 0.05 + this.snakeIndex * 0.5) * ww;
+        } 
+        else if (this.behavior === 'swirl') { 
+            this.z -= 2.5;
+            this.x = this.baseX + Math.sin(game.frame * 0.1 + this.snakeIndex) * 80;
+        }
+        else if (this.behavior === 'dash') { 
+            const isDashing = (game.frame + this.snakeIndex * 10) % 100 < 30;
+            this.z -= isDashing ? 8 : 1.5;
+            if (isDashing) game.particles.push(new Particle(this.x, 5, this.z + 20, '#e74c3c', 0.5));
+        }
+        else if (this.behavior === 'pincer') { 
+            this.z -= 3; this.x += ((lx + ln) / 2 - this.x) * 0.05; 
+        } 
+        else if (this.type !== 'boss') { 
+            this.z -= 1.5; 
         }
 
-        // 強制線道約束
-        this.x = Math.max(laneMin, Math.min(laneMax, this.x));
+        this.x = Math.max(ln, Math.min(lx, this.x));
+        
+        this.walkCycle += 0.2;
 
         for (let b of game.bullets) {
             if (!b.active) continue;
             const dx = b.x - this.x; const dz = b.z - this.z;
-            const hitDist = (b.type === 'cannon') ? (this.width + 20) : (this.width + 10);
-            if (dx*dx + dz*dz < hitDist * hitDist) {
-                b.active = false;
-                if (b.type === 'cannon') game.createExplosion(b.x, b.z, 150 * (1 + b.powerScale*0.1), 10 * b.powerScale); 
-                else { this.takeDamage(1 * b.powerScale); game.particles.push(new Particle(b.x, 20, b.z, COLORS.bullet)); }
+            const hitRadius = this.width * 0.5 + 20; 
+            if (dx*dx + dz*dz < hitRadius * hitRadius) {
+                b.active = false; if (b.type === 'cannon') game.createExplosion(b.x, b.z, 150, 10); else this.takeDamage(1 * b.powerScale);
             }
         }
+        
+        const crowdRadius = game.getCrowdRadius();
+        const collisionThreshold = crowdRadius + this.width * 0.35;
         const distToPlayer = Math.sqrt(Math.pow(game.playerX - this.x, 2) + Math.pow(game.playerZ - this.z, 2));
-        const crowdRadius = Math.min(300, Math.sqrt(game.soldiers.length * 50) + 30); 
-        if (distToPlayer < crowdRadius + this.width/2 && this.active) {
-            if (game.frame % 4 === 0) { game.removeSoldiers(1); this.takeDamage(5); game.screenshake = 6; }
+        
+        if (distToPlayer < collisionThreshold && this.active) {
+            if (game.frame % 4 === 0) { game.removeSoldiers(1); this.takeDamage(5); }
         }
     }
-
     takeDamage(amount) {
         this.hp -= amount; this.hitFlash = 2;
         if (this.hp <= 0 && this.active) {
-            this.active = false; let particleColor = '#ff7675';
-            if (this.type === 'elite') particleColor = '#fab1a0'; if (this.type === 'boss') particleColor = '#a29bfe';
-            for(let i=0; i<10; i++) game.particles.push(new Particle(this.x, 25, this.z, particleColor, 2));
+            this.active = false; 
+            game.kills++;
             game.score += (this.type === 'boss' ? 500 : (this.type === 'elite' ? 50 : 10));
+            game.updateBadge();
         }
     }
-
     draw(ctx) {
         const p = project({x: this.x, y: this.y, z: this.z}); if (!p.visible) return;
-        const w = this.width * p.scale; const h = this.height * p.scale; const drawY = p.y - h;
-        let mainColor = COLORS.enemy; let darkColor = COLORS.enemyDark;
-        if (this.type === 'elite') { mainColor = COLORS.enemyElite; darkColor = '#a52019'; }
-        if (this.type === 'boss') { mainColor = COLORS.enemyBoss; darkColor = '#8e44ad'; }
-        ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(p.x, p.y, w/2, w/4, 0, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = this.hitFlash > 0 ? '#fff' : mainColor; if (this.hitFlash > 0) this.hitFlash--;
-        if (this.type === 'normal') { ctx.beginPath(); ctx.moveTo(p.x, drawY); ctx.lineTo(p.x + w/2, drawY + h/3); ctx.lineTo(p.x, drawY + h); ctx.lineTo(p.x - w/2, drawY + h/3); ctx.fill(); } 
-        else if (this.type === 'elite') { ctx.beginPath(); ctx.moveTo(p.x - w/2, drawY); ctx.lineTo(p.x + w/2, drawY); ctx.lineTo(p.x + w/4, drawY + h); ctx.lineTo(p.x - w/4, drawY + h); ctx.fill(); ctx.fillStyle = darkColor; ctx.fillRect(p.x - w*0.6, drawY + h*0.1, w*0.3, h*0.3); ctx.fillRect(p.x + w*0.3, drawY + h*0.1, w*0.3, h*0.3); } 
-        else { ctx.beginPath(); ctx.ellipse(p.x, drawY + h/2, w/2, h/2, 0, 0, Math.PI*2); ctx.fill(); }
-        if (this.type === 'boss') { ctx.beginPath(); ctx.arc(p.x, drawY + h/2, w/4, 0, Math.PI*2); ctx.fillStyle = '#ff0000'; ctx.fill(); } 
-        else { const eyeSize = w * 0.15; ctx.beginPath(); ctx.arc(p.x - w/4, drawY + h*0.3, eyeSize, 0, Math.PI*2); ctx.arc(p.x + w/4, drawY + h*0.3, eyeSize, 0, Math.PI*2); ctx.fillStyle = '#fff'; ctx.fill(); }
-        if (this.type === 'boss' || (this.type === 'elite' && this.hp < this.maxHp)) {
-            const hpPct = Math.max(0, this.hp / this.maxHp); const barW = w * 1.5; const barH = 6 * p.scale;
-            ctx.fillStyle = '#2d3436'; ctx.fillRect(p.x - barW/2, drawY - barH * 3, barW, barH);
-            ctx.fillStyle = '#00b894'; ctx.fillRect(p.x - barW/2, drawY - barH * 3, barW * hpPct, barH);
+        const w = this.width * p.scale; const h = this.height * p.scale; const drawY = p.y - h/2; 
+        
+        ctx.beginPath();
+        const collisionRadius = this.width * 0.35; 
+        const steps = 16;
+        for (let i = 0; i <= steps; i++) {
+            const theta = (i / steps) * Math.PI * 2;
+            const px = this.x + Math.cos(theta) * collisionRadius;
+            const pz = this.z + Math.sin(theta) * collisionRadius;
+            const proj = project({x: px, y: 0, z: pz});
+            if (proj.visible) {
+                if (i === 0) ctx.moveTo(proj.x, proj.y);
+                else ctx.lineTo(proj.x, proj.y);
+            }
+        }
+        ctx.strokeStyle = 'rgba(231, 76, 60, 0.7)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+
+        ctx.fillStyle = this.hitFlash > 0 ? '#fff' : (this.type === 'boss' ? COLORS.enemyBoss : (this.type === 'elite' ? COLORS.enemyElite : COLORS.enemy));
+        if (this.hitFlash > 0) this.hitFlash--;
+
+        const legOffset = Math.sin(this.walkCycle) * h * 0.1;
+        
+        if (this.type === 'boss') {
+            ctx.fillStyle = '#5e2a84'; 
+            ctx.beginPath(); ctx.moveTo(p.x, drawY - h*0.4); ctx.lineTo(p.x - w*0.6, drawY + h); ctx.lineTo(p.x + w*0.6, drawY + h); ctx.fill();
+            
+            ctx.fillStyle = this.hitFlash > 0 ? '#fff' : COLORS.enemyBoss; 
+            ctx.fillRect(p.x - w*0.4, drawY - h*0.4, w*0.8, h*0.8);
+            
+            ctx.fillStyle = '#2d3436';
+            ctx.beginPath(); ctx.arc(p.x, drawY - h*0.4, w*0.3, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#ff0000'; 
+            ctx.beginPath(); ctx.arc(p.x, drawY - h*0.4, w*0.1, 0, Math.PI*2); ctx.fill();
+
+            if (this.hp < this.maxHp) {
+                const hpPct = Math.max(0, this.hp / this.maxHp);
+                // [修改 3] 縮短 Boss 血條長度 (w*2 -> w*1.2)
+                ctx.fillStyle = '#2d3436'; ctx.fillRect(p.x - w*0.6, drawY - h - 15*p.scale, w*1.2, 8*p.scale);
+                ctx.fillStyle = '#00b894'; ctx.fillRect(p.x - w*0.6, drawY - h - 15*p.scale, w*1.2*hpPct, 8*p.scale);
+            }
+        } 
+        else {
+            let bodyColor = this.type === 'elite' ? COLORS.enemyDark : COLORS.enemy;
+            ctx.fillStyle = '#2d3436'; 
+            ctx.fillRect(p.x - w*0.2, drawY + h*0.2, w*0.15, h*0.3 + legOffset);
+            ctx.fillRect(p.x + w*0.05, drawY + h*0.2, w*0.15, h*0.3 - legOffset);
+
+            ctx.fillStyle = this.hitFlash > 0 ? '#fff' : bodyColor; 
+            ctx.fillRect(p.x - w*0.3, drawY - h*0.3, w*0.6, h*0.5);
+
+            if(this.type === 'elite') {
+                ctx.fillStyle = '#7f8c8d';
+                ctx.fillRect(p.x - w*0.45, drawY - h*0.3, w*0.15, h*0.25);
+                ctx.fillRect(p.x + w*0.3, drawY - h*0.3, w*0.15, h*0.25);
+            }
+
+            ctx.fillStyle = '#333';
+            ctx.beginPath(); ctx.arc(p.x, drawY - h*0.35, w*0.25, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#e74c3c'; 
+            ctx.fillRect(p.x - w*0.15, drawY - h*0.4, w*0.1, h*0.1);
+            ctx.fillRect(p.x + w*0.05, drawY - h*0.4, w*0.1, h*0.1);
+            
+            ctx.fillStyle = '#000';
+            ctx.fillRect(p.x - w*0.4, drawY, w*0.1, h*0.2); 
+            
+            // [修改 3] 如果是精英怪，血條也縮短
+            if (this.hp < this.maxHp && this.type === 'elite') {
+                const hpPct = Math.max(0, this.hp / this.maxHp);
+                ctx.fillStyle = '#2d3436'; ctx.fillRect(p.x - w*0.6, drawY - h - 10*p.scale, w*1.2, 5*p.scale);
+                ctx.fillStyle = '#e67e22'; ctx.fillRect(p.x - w*0.6, drawY - h - 10*p.scale, w*1.2*hpPct, 5*p.scale);
+            }
         }
     }
 }
@@ -663,329 +839,434 @@ class Enemy {
 class Gate {
     constructor(x, z, width, height, type, value) {
         this.x = x; this.y = 0; this.z = z; this.width = width; this.height = height; this.type = type; this.value = value; this.active = true;
-        if (this.type === 'math') {
-            this.isGood = (value.toString().includes('+') || value.toString().includes('x'));
-            this.color = this.isGood ? 'rgba(9, 132, 227, 0.3)' : 'rgba(214, 48, 49, 0.3)';
-            this.borderColor = this.isGood ? '#0984e3' : '#d63031'; this.text = value;
-        } else {
-            this.borderColor = value === 'rapid' ? '#f1c40f' : '#9b59b6';
-            this.color = value === 'rapid' ? 'rgba(241, 196, 15, 0.3)' : 'rgba(155, 89, 182, 0.3)';
-            this.text = value.toUpperCase();
-        }
+        this.borderColor = (type === 'math' && !value.includes('-')) || type === 'weapon' ? '#0984e3' : '#d63031';
+        this.text = type === 'math' ? value : value.toUpperCase();
     }
     update() {
-        if (!this.active) return;
-        if (Math.abs(game.playerZ - this.z) < 15) {
-            if (game.playerX > this.x - this.width/2 && game.playerX < this.x + this.width/2) this.trigger();
-        }
+        if (this.active && Math.abs(game.playerZ - this.z) < 20 && Math.abs(game.playerX - this.x) < this.width/2 + 20) this.trigger();
     }
     trigger() {
         this.active = false;
         if (this.type === 'math') {
             const op = this.value.charAt(0); const num = parseInt(this.value.substring(1)); game.applyMath(op, num);
-            game.screenshake = 4; for(let i=0; i<15; i++) game.particles.push(new Particle(this.x, 60, this.z, this.borderColor, 2));
+            for(let i=0; i<15; i++) game.particles.push(new Particle(this.x, 60, this.z, this.borderColor, 2, 8));
         } else {
-            game.activateWeapon(this.value); game.screenshake = 8;
-            for(let i=0; i<20; i++) game.particles.push(new Particle(this.x, 60, this.z, this.borderColor, 3));
+            game.activateWeapon(this.value);
+            for(let i=0; i<20; i++) game.particles.push(new Particle(this.x, 60, this.z, this.borderColor, 3, 8));
         }
     }
     draw(ctx) {
         if (!this.active) return;
         const p = project({x: this.x, y: this.y, z: this.z}); if (!p.visible) return;
         const w = this.width * p.scale; const h = this.height * p.scale; const topY = p.y - h;
-        ctx.fillStyle = this.color; ctx.globalAlpha = 0.8; ctx.fillRect(p.x - w/2, topY, w, h);
+        
+        ctx.fillStyle = this.borderColor + '44'; ctx.fillRect(p.x - w/2, topY, w, h);
         ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(p.x - w/2, topY + (game.frame % 30) * (h/30), w, h * 0.1);
         ctx.globalAlpha = 1.0; ctx.strokeStyle = this.borderColor; ctx.lineWidth = 4 * p.scale; ctx.strokeRect(p.x - w/2, topY, w, h);
-        ctx.fillStyle = '#fff'; ctx.font = `900 ${36 * p.scale}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        
+        ctx.fillStyle = '#fff'; 
+        ctx.font = `900 ${80 * p.scale}px Arial`; 
+        ctx.textAlign = 'center'; 
+        ctx.textBaseline = 'middle';
+        
         if (this.type === 'weapon') {
-             const icon = this.value === 'rapid' ? '!!!' : '●'; ctx.fillText(icon, p.x, topY + h/3);
-             ctx.font = `bold ${20 * p.scale}px Arial`; ctx.fillText(this.text, p.x, topY + h*0.7);
-        } else ctx.fillText(this.text, p.x, topY + h/2);
+             const icon = this.value === 'rapid' ? '!!!' : '●'; 
+             ctx.fillText(icon, p.x, topY + h * 0.4);
+             ctx.font = `bold ${40 * p.scale}px Arial`; 
+             ctx.fillText(this.text, p.x, topY + h * 0.8);
+        } else {
+             ctx.fillText(this.text, p.x, topY + h * 0.5);
+        }
     }
 }
 
+// [修改 1] 粒子特效升級 (球體 + 膨脹)
 class Particle {
-    constructor(x, y, z, color, speedScale = 1) {
-        this.x = x; this.y = y; this.z = z; this.color = color;
-        this.vx = (Math.random() - 0.5) * 15 * speedScale; this.vy = (Math.random() * 10 + 10) * speedScale; this.vz = (Math.random() - 0.5) * 15 * speedScale;
-        this.gravity = 1.0; this.life = 1.0;
+    constructor(x, y, z, color, speed = 1, size = 6) {
+        this.x = x; this.y = y; this.z = z; this.color = color; this.life = 1.0;
+        this.vx = (Math.random()-0.5)*10*speed; 
+        this.vy = (Math.random()*10)*speed; 
+        this.vz = (Math.random()-0.5)*10*speed;
+        this.size = size;
     }
-    update() {
-        this.x += this.vx; this.y += this.vy; this.z += this.vz; this.vy -= this.gravity;
-        if (this.y < 0) { this.y = 0; this.vy *= -0.6; } this.life -= 0.04;
+    update() { 
+        this.x += this.vx; this.y += this.vy; this.z += this.vz; 
+        this.vy -= 0.5; 
+        this.life -= 0.04; 
+        this.size *= 1.05; // 粒子膨脹效果
     }
     draw(ctx) {
-        if (this.life <= 0) return;
+        if (this.life <= 0) return; 
         const p = project({x: this.x, y: this.y, z: this.z}); if (!p.visible) return;
-        ctx.globalAlpha = this.life; ctx.fillStyle = this.color; const s = 6 * p.scale; ctx.fillRect(p.x - s/2, p.y - s/2, s, s); ctx.globalAlpha = 1.0;
+        
+        ctx.globalAlpha = this.life * 0.7; // 半透明效果
+        ctx.fillStyle = this.color; 
+        
+        // 繪製圓球體
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, this.size * p.scale, 0, Math.PI*2);
+        ctx.fill();
+        
+        ctx.globalAlpha = 1.0;
     }
 }
 
 class Game {
     constructor() {
-        this.running = false; this.paused = false; this.animationId = null; this.frame = 0; this.score = 0;
+        this.running = false; this.paused = false; this.animationId = null; this.frame = 0;
         this.playerX = 0; this.playerZ = 0; this.cameraZ = -400; this.baseSpeed = 5; this.targetX = 0; this.keys = { left: false, right: false };
-        this.soldiers = []; this.bullets = []; this.enemies = []; this.gates = []; this.particles = []; this.decor = []; this.missiles = []; this.powerups = []; this.tanks = [];    
-        this.screenshake = 0; this.weaponType = 'normal'; this.weaponTimer = 0;
-        this.addSoldiers(1); this.setupInputs();
+        this.soldiers = []; this.bullets = []; this.enemies = []; this.gates = []; this.particles = []; this.decor = []; 
+        this.missiles = []; this.powerups = []; this.tanks = []; 
+        this.traps = []; 
+        this.kills = 0; 
+        this.curve = 0; 
+        this.setupInputs();
     }
-
     setupInputs() {
-        let isDown = false;
-        const onMove = (clientX) => {
+        const move = (cx) => {
             if (!this.running || this.paused) return;
-            const rect = canvas.getBoundingClientRect();
-            const ratio = (clientX - rect.left) / rect.width;
-            this.targetX = (ratio - 0.5) * 700; this.targetX = Math.max(-300, Math.min(300, this.targetX));
+            const r = (cx - canvas.getBoundingClientRect().left) / canvas.width;
+            this.targetX = (r - 0.5) * 700; this.targetX = Math.max(-300, Math.min(300, this.targetX));
         };
-        container.addEventListener('mousedown', e => { if(e.target.tagName !== 'BUTTON') { isDown = true; e.preventDefault(); onMove(e.clientX); } });
-        window.addEventListener('mousemove', e => { if(isDown) onMove(e.clientX); });
-        window.addEventListener('mouseup', () => isDown = false);
-        container.addEventListener('touchstart', e => { if(e.target.tagName !== 'BUTTON') { isDown = true; onMove(e.touches[0].clientX); } }, {passive: false});
-        window.addEventListener('touchmove', e => { if(isDown) { e.preventDefault(); onMove(e.touches[0].clientX); } }, {passive: false});
-        window.addEventListener('touchend', () => isDown = false);
-        window.addEventListener('keydown', (e) => {
+        
+        container.addEventListener('touchstart', e => { this.isDown = true; move(e.touches[0].clientX); }, {passive: false});
+        window.addEventListener('touchmove', e => { if(this.isDown) { e.preventDefault(); move(e.touches[0].clientX); } }, {passive: false});
+        window.addEventListener('touchend', () => this.isDown = false);
+        
+        window.addEventListener('keydown', e => { 
             if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') this.keys.left = true;
             if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') this.keys.right = true;
             if (e.key === 'Escape') this.togglePause();
         });
-        window.addEventListener('keyup', (e) => {
+        window.addEventListener('keyup', e => { 
             if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') this.keys.left = false;
             if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') this.keys.right = false;
         });
+
+        window.addEventListener('contextmenu', e => e.preventDefault());
     }
-
-    start(btn) {
-        if(btn) btn.blur();
-        if (this.animationId) cancelAnimationFrame(this.animationId);
-        document.getElementById('main-menu').classList.add('hidden');
-        document.getElementById('game-over').classList.add('hidden');
-        document.getElementById('pause-overlay').classList.add('hidden');
-        
-        // [修改 1] 顯示右下角按鈕
+    start() {
+        document.getElementById('main-menu').classList.add('hidden'); document.getElementById('game-over').classList.add('hidden');
         document.getElementById('ingame-controls').classList.remove('hidden');
-
         this.running = true; this.paused = false; this.reset(); this.loop();
     }
-
     goHome() {
-        this.running = false;
-        if (this.animationId) cancelAnimationFrame(this.animationId);
-        
-        // [修改 1] 隱藏右下角按鈕
-        document.getElementById('ingame-controls').classList.add('hidden');
-        document.getElementById('main-menu').classList.remove('hidden');
-        document.getElementById('game-over').classList.add('hidden');
+        this.running = false; 
+        this.paused = false; 
         document.getElementById('pause-overlay').classList.add('hidden');
         document.getElementById('pause-btn').innerText = "II";
+        document.getElementById('ingame-controls').classList.add('hidden');
+        document.getElementById('main-menu').classList.remove('hidden'); 
+        document.getElementById('game-over').classList.add('hidden');
     }
-
     togglePause() {
-        if (!this.running) return;
-        this.paused = !this.paused;
-        const overlay = document.getElementById('pause-overlay');
-        const btn = document.getElementById('pause-btn');
-        if (this.paused) {
-            overlay.classList.remove('hidden'); btn.innerText = "▶";
-            if (this.animationId) cancelAnimationFrame(this.animationId);
-        } else {
-            overlay.classList.add('hidden'); btn.innerText = "II"; this.loop(); 
-        }
+        if (!this.running) return; this.paused = !this.paused;
+        document.getElementById('pause-overlay').classList.toggle('hidden');
+        document.getElementById('pause-btn').innerText = this.paused ? "▶" : "II";
+        if (!this.paused) this.loop();
     }
-
     reset() {
-        this.playerX = 0; this.playerZ = 0; this.cameraZ = -400; this.score = 0; this.frame = 0;
-        this.soldiers = []; this.bullets = []; this.enemies = []; this.gates = []; this.particles = []; this.decor = []; this.missiles = []; this.powerups = []; this.tanks = [];
-        this.weaponType = 'normal'; this.weaponTimer = 0;
-        document.getElementById('weapon-status').style.opacity = '0';
-        this.addSoldiers(1);
+        this.playerX = 0; this.playerZ = 0; this.cameraZ = -400; this.frame = 0; this.score = 0;
+        this.kills = 0; 
+        this.soldiers = []; this.bullets = []; this.enemies = []; this.gates = []; this.particles = []; this.decor = []; 
+        this.missiles = []; this.powerups = []; this.tanks = []; 
+        this.traps = [];
+        this.weaponType = 'normal'; this.weaponTimer = 0; this.addSoldiers(1);
         for(let i=1; i<8; i++) this.spawnLevelBlock(i * 1200);
+        this.updateBadge();
     }
-
-    spawnTank() { this.tanks.push(new Tank(this)); }
+    spawnTank() { this.tanks.push(new Tank(this, this.tanks.length)); }
+    
     activateWeapon(type) {
         this.weaponType = type; this.weaponTimer = 600; 
-        const status = document.getElementById('weapon-status');
-        status.innerText = `WEAPON: ${type.toUpperCase()}`; status.style.opacity = '1'; status.style.color = type === 'rapid' ? '#f1c40f' : '#9b59b6';
+        document.getElementById('weapon-status').style.opacity = '1';
+        document.getElementById('weapon-status').innerText = `WEAPON: ${type.toUpperCase()}`;
     }
     
-    createExplosion(x, z, radius, damage) {
-        for(let i=0; i<15; i++) this.particles.push(new Particle(x, 10, z, '#e67e22', 2));
-        this.enemies.forEach(e => { if (e.active && Math.pow(e.x - x, 2) + Math.pow(e.z - z, 2) < radius*radius) e.takeDamage(damage); });
-        this.screenshake = 4;
+    getCrowdRadius() {
+        return 22 * Math.sqrt(this.soldiers.length) + 5;
     }
 
+    getTotalPower() { 
+        let p = 0; 
+        this.soldiers.forEach(s => p += s.hp); 
+        return p; 
+    }
+
+    createExplosion(x, z, radius, damage) {
+        // [修改 1] 爆炸特效：使用不同大小和顏色的球體粒子
+        for(let i=0; i<15; i++) {
+            const color = Math.random() > 0.5 ? '#e74c3c' : '#f39c12'; // 紅橘相間
+            this.particles.push(new Particle(x, 10, z, color, 2, 12 + Math.random()*8));
+        }
+        this.enemies.forEach(e => { if (e.active && Math.pow(e.x - x, 2) + Math.pow(e.z - z, 2) < radius*radius) e.takeDamage(damage); });
+    }
     mergeSoldiers() {
-        let groups = {}; this.soldiers.forEach(s => { if(!groups[s.rank]) groups[s.rank] = []; groups[s.rank].push(s); });
-        let changed = false;
+        let g = {}; this.soldiers.forEach(s => { g[s.rank] = g[s.rank] || []; g[s.rank].push(s); });
+        let ch = false;
         for(let r = 0; r < 7; r++) { 
-            if (groups[r] && groups[r].length >= 5) {
-                const mergeCount = Math.floor(groups[r].length / 5);
-                let removeCount = mergeCount * 5; let removed = 0;
-                for(let i = groups[r].length - 1; i >= 0; i--) { if (removed < removeCount) { groups[r][i].active = false; removed++; } }
-                for(let i=0; i<mergeCount; i++) this.soldiers.push(new Soldier(this, this.soldiers.length, r + 1));
-                changed = true; this.screenshake = 2;
+            if (g[r] && g[r].length >= 5) {
+                const mc = Math.floor(g[r].length / 5);
+                let rm = mc * 5; for(let i = g[r].length-1; i>=0 && rm>0; i--) { g[r][i].active = false; rm--; }
+                for(let i=0; i<mc; i++) this.soldiers.push(new Soldier(this, this.soldiers.length, r + 1));
+                ch = true;
             }
         }
-        if (changed) {
-            this.soldiers = this.soldiers.filter(s => s.active); this.soldiers.forEach((s, i) => s.recalculateOffset(i)); this.updateBadge();
-        }
+        if (ch) { this.soldiers = this.soldiers.filter(s => s.active); this.soldiers.forEach((s, i) => s.recalculateOffset(i)); this.updateBadge(); }
     }
-
     addSoldiers(count) {
         const startIdx = this.soldiers.length; for (let i = 0; i < count; i++) this.soldiers.push(new Soldier(this, startIdx + i, 0)); 
-        this.mergeSoldiers(); this.updateBadge(); this.screenshake = Math.min(5, count * 0.5);
+        this.mergeSoldiers(); this.updateBadge();
     }
-
     removeSoldiers(count) {
-        if (this.soldiers.length <= 0) return; this.soldiers.sort((a, b) => a.rank - b.rank);
-        let removed = 0; while(removed < count && this.soldiers.length > 0) { this.soldiers[0].active = false; this.soldiers.shift(); removed++; }
-        this.soldiers = this.soldiers.filter(s => s.active); this.soldiers.forEach((s, i) => s.recalculateOffset(i)); this.updateBadge();
-        if (this.soldiers.length <= 0) this.gameOver();
+        this.soldiers.sort((a,b)=>a.rank-b.rank); let rem=0; while(rem < count && this.soldiers.length > 0) { this.soldiers[0].active = false; this.soldiers.shift(); rem++; }
+        this.soldiers.forEach((s,i)=>s.recalculateOffset(i)); this.updateBadge();
+        // 移除這個強制結束判定，改在 update 裡檢查
     }
-
     applyMath(op, val) {
-        let count = this.soldiers.length; let newCount = count;
-        if (op === '+') newCount = count + val; if (op === 'x') newCount = count * val;
-        if (op === '-') newCount = count - val; if (op === '/') newCount = Math.floor(count / val);
-        newCount = Math.max(1, newCount); const diff = newCount - count;
-        if (diff > 0) this.addSoldiers(diff); else if (diff < 0) this.removeSoldiers(Math.abs(diff));
+        if (op === 'x') {
+            const cur = [...this.soldiers];
+            for(let m=1; m<val; m++) cur.forEach(s => this.soldiers.push(new Soldier(this, this.soldiers.length, s.rank)));
+        } else {
+            let tc = (op === '+') ? this.soldiers.length + val : (op === '-') ? this.soldiers.length - val : Math.floor(this.soldiers.length / val);
+            let diff = Math.max(1, tc) - this.soldiers.length;
+            if (diff > 0) this.addSoldiers(diff); else if (diff < 0) this.removeSoldiers(Math.abs(diff));
+        }
+        this.mergeSoldiers(); this.updateBadge();
     }
-
     updateBadge() {
-        const badge = document.getElementById('count-badge'); let totalPower = 0; this.soldiers.forEach(s => totalPower += RANKS[s.rank].hp);
-        badge.innerText = `Power: ${totalPower}`; badge.style.transform = 'scale(1.3)'; setTimeout(() => badge.style.transform = 'scale(1)', 150);
+        document.getElementById('count-badge').innerText = `Power: ${this.getTotalPower()}`;
         document.getElementById('distance-badge').innerText = Math.floor(this.playerZ / 10) + " m";
+        document.getElementById('kills-badge').innerText = `Kills: ${this.kills}`;
     }
 
     spawnLevelBlock(z) {
-        for(let i=0; i<5; i++) {
-             const type = Math.random() > 0.3 ? 'tree' : 'rock'; const side = Math.random() > 0.5 ? 1 : -1;
-             this.decor.push(new Decor(side * (400 + Math.random() * 400), z + Math.random() * 1200, type));
+        for(let i=0; i<8; i++) {
+             const dtype = Math.random();
+             let type = 'rock';
+             let dist = 500 + Math.random() * 500; 
+             
+             if (dtype < 0.2) { type = 'mountain'; dist = 1200 + Math.random() * 1000; }
+             else if (dtype < 0.4) { type = 'cloud'; dist = 800 + Math.random() * 1000; }
+             else if (dtype < 0.5) { type = 'city'; dist = 1400 + Math.random() * 500; }
+             else if (dtype < 0.7) type = 'tree';
+             
+             this.decor.push(new Decor((Math.random()>0.5?1:-1)*dist, z+Math.random()*1200, type));
+        }
+        
+        if (Math.random() < 0.15) {
+             const type = Math.random() > 0.5 ? 'mine' : 'spike';
+             const tx = (Math.random() > 0.5 ? 150 : -150) + (Math.random() - 0.5) * 100;
+             this.traps.push(new Trap(tx, z + 400, type));
         }
 
-        let isEarly = z < 3000;
-        if (Math.random() < (isEarly ? 0.3 : 0.15)) {
-             const w = 280; const gap = 20;
-             this.gates.push(new Gate(-w/2 - gap, z, w, 140, 'math', (isEarly?'+':'x')+(isEarly?15:2)));
-             this.gates.push(new Gate(w/2 + gap, z, w, 140, 'weapon', Math.random()>0.5?'rapid':'cannon'));
-        } 
-        else {
-            const patternRand = Math.random();
-            const diffMul = Math.floor(this.score / 2000);
-            
-            // [修改 3] 隨機決定左右道路
-            const spawnLane = Math.random() > 0.5 ? 1 : 2; 
-            const laneX = spawnLane === 1 ? -180 : 180;
+        const early = z < 3000;
+        if (Math.random() < (early ? 0.3 : 0.15)) {
+             const val1 = Math.floor(Math.random() * 40) + 10;
+             let op1 = Math.random() > 0.4 ? '+' : '-'; 
+             
+             let type2 = Math.random() > 0.5 ? 'weapon' : 'math';
+             let val2, op2;
 
-            if (patternRand < 0.2) {
-                // 衝鋒軍團 (限定單一道路)
-                for(let r=0; r<3+diffMul; r++) {
-                    for(let c=0; c<3; c++) {
-                        this.enemies.push(new Enemy(laneX + (c-1)*60, z + r*60, 'normal', 'charge'));
+             if (type2 === 'math') {
+                 val2 = Math.floor(Math.random() * 40) + 10;
+                 if (op1 === '-') {
+                     op2 = '+'; 
+                 } else {
+                     op2 = Math.random() > 0.5 ? '+' : '-';
+                 }
+             }
+
+             this.gates.push(new Gate(-150, z, 280, 140, 'math', op1 + val1));
+             
+             if (type2 === 'weapon') {
+                 this.gates.push(new Gate(150, z, 280, 140, 'weapon', Math.random()>0.5?'rapid':'cannon'));
+             } else {
+                 this.gates.push(new Gate(150, z, 280, 140, 'math', op2 + val2));
+             }
+        } else {
+            const pr = Math.random(); 
+            const lX = Math.random() > 0.5 ? -180 : 180;
+            const randomOffset = (Math.random() - 0.5) * 40; 
+            
+            if (pr < 0.2) {
+                for(let r=0; r<3; r++) {
+                    for(let c=0; c<=r; c++) { 
+                        const ex = lX + (c - r/2) * 60 + randomOffset;
+                        this.enemies.push(new Enemy(ex, z + r*60, 'normal', 'charge'));
                     }
                 }
-            } 
-            else if (patternRand < 0.4) {
-                // 蛇行縱隊
-                const count = 10 + diffMul * 2;
-                for(let i=0; i<count; i++) this.enemies.push(new Enemy(laneX, z + i*70, 'normal', 'snake', i));
             }
-            else if (patternRand < 0.6) {
-                // 雙路夾擊 (左右同時生成)
-                const count = 3 + diffMul;
-                for(let i=0; i<count; i++) {
-                    this.enemies.push(new Enemy(-180, z + i*100, 'normal', 'charge'));
-                    this.enemies.push(new Enemy(180, z + i*100, 'normal', 'charge'));
+            else if (pr < 0.35) {
+                for(let i=0; i<5; i++) { 
+                    for(let col=0; col<3; col++) { 
+                        const ex = lX + (col-1)*50 + randomOffset;
+                        this.enemies.push(new Enemy(ex, z+i*80, 'normal', 'snake', i + col*2));
+                    }
                 }
             }
+            else if (pr < 0.5) {
+                for(let i=0; i<6; i++) {
+                     this.enemies.push(new Enemy(lX - 40 + randomOffset, z+i*60, 'normal', 'swirl', i));
+                     this.enemies.push(new Enemy(lX + 40 + randomOffset, z+i*60, 'normal', 'swirl', i + 3));
+                }
+            }
+            else if (pr < 0.65) {
+                for(let i=0; i<4; i++) {
+                    for(let j=0; j<3; j++) {
+                        const ex = lX + (j-1)*70 + randomOffset;
+                        this.enemies.push(new Enemy(ex, z+i*100, 'normal', 'dash', i));
+                    }
+                }
+            }
+            else if (pr < 0.8) { 
+                 this.enemies.push(new Enemy(-200 + randomOffset, z, 'normal', 'charge')); 
+                 this.enemies.push(new Enemy(200 - randomOffset, z, 'normal', 'charge'));
+                 this.enemies.push(new Enemy(-160 + randomOffset, z+80, 'normal', 'charge')); 
+                 this.enemies.push(new Enemy(160 - randomOffset, z+80, 'normal', 'charge'));
+                 this.enemies.push(new Enemy(-200 + randomOffset, z+160, 'normal', 'charge')); 
+                 this.enemies.push(new Enemy(200 - randomOffset, z+160, 'normal', 'charge'));
+            }
             else {
-                // 隨機散亂 (在兩條路分別隨機)
-                const count = 6 + diffMul;
-                for(let i=0; i<count; i++) {
-                    const lX = Math.random() > 0.5 ? (Math.random()*250 + 40) : (Math.random()*-250 - 40);
-                    this.enemies.push(new Enemy(lX, z + Math.random()*300, Math.random()>0.8?'elite':'normal'));
+                for(let i=0; i<8; i++) {
+                    const ex = (Math.random()>0.5?180:-180) + (Math.random()-0.5)*100; 
+                    const ez = z + Math.random() * 400;
+                    this.enemies.push(new Enemy(ex, ez, Math.random()>0.8?'elite':'normal'));
                 }
             }
         }
         if (Math.random() < 0.08) this.powerups.push(new PowerUp((Math.random()-0.5)*400, z + 600));
-        if (z > 3000 && z % 6000 < 1200 && this.enemies.filter(e => e.type === 'boss').length === 0) this.enemies.push(new Enemy(0, z + 800, 'boss'));
+        
+        if (z > 3000 && z % 6000 < 1200 && this.enemies.filter(e => e.type === 'boss').length === 0) {
+            const bX = Math.random() > 0.5 ? -180 : 180;
+            this.enemies.push(new Enemy(bX, z + 800, 'boss'));
+        }
     }
-
     update() {
         if (!this.running || this.paused) return; this.frame++; this.playerZ += this.baseSpeed;
         if (this.weaponTimer > 0 && --this.weaponTimer <= 0) { this.weaponType = 'normal'; document.getElementById('weapon-status').style.opacity = '0'; }
+        
+        this.curve = Math.sin(this.playerZ * 0.0005) * 1.5; 
+
         this.cameraZ += (this.playerZ - 250 - this.cameraZ) * 0.1;
-        if (this.keys.left) this.targetX = Math.max(-300, this.targetX - 15);
-        if (this.keys.right) this.targetX = Math.min(300, this.targetX + 15);
+        if (this.keys.left) this.targetX = Math.max(-300, this.targetX - 15); if (this.keys.right) this.targetX = Math.min(300, this.targetX + 15);
         this.playerX += (this.targetX - this.playerX) * 0.12;
         if (this.frame % 100 === 0) this.spawnLevelBlock(this.playerZ + 2500);
-        if (this.missiles.length < 2 && Math.random() < 0.005 + (this.playerZ * 0.000001)) this.missiles.push(new Missile(this));
-        this.soldiers.forEach(s => s.update(1/60)); this.bullets.forEach(b => b.update()); this.bullets = this.bullets.filter(b => b.active);
+        // [修改 1] 降低飛彈頻率 (從 0.005 -> 0.003)
+        if (this.missiles.length < 2 && Math.random() < 0.003 + (this.playerZ * 0.0000005)) this.missiles.push(new Missile(this));
+        
+        // Update entities
+        this.soldiers.forEach(s => s.update(1/60)); 
+        this.soldiers = this.soldiers.filter(s => s.active); // Filter dead soldiers here
+        
+        // [修改 1] Game Over 檢查移到這裡
+        if (this.soldiers.length === 0) {
+             this.gameOver();
+             return;
+        }
+
+        this.bullets.forEach(b => b.update()); this.bullets = this.bullets.filter(b => b.active);
         this.enemies.forEach(e => e.update()); this.enemies = this.enemies.filter(e => e.active);
         this.gates.forEach(g => g.update()); this.gates = this.gates.filter(g => g.active);
-        this.particles.forEach(p => p.update()); this.particles = this.particles.filter(p => p.life > 0);
         this.missiles.forEach(m => m.update()); this.missiles = this.missiles.filter(m => m.active);
         this.powerups.forEach(p => p.update()); this.powerups = this.powerups.filter(p => p.active);
         this.tanks.forEach(t => t.update()); this.tanks = this.tanks.filter(t => t.active || t.lifeTime > -60); 
+        this.particles.forEach(p => p.update()); this.particles = this.particles.filter(p => p.life > 0);
         this.decor = this.decor.filter(d => d.z > this.cameraZ - 200);
-        if (this.screenshake > 0) this.screenshake *= 0.9;
+        this.traps.forEach(t => t.update()); this.traps = this.traps.filter(t => t.active && t.z > this.cameraZ - 200);
+        
+        if (this.screenshake > 0) {
+            this.screenshake *= 0.9;
+            if(this.screenshake < 0.5) this.screenshake = 0;
+        }
     }
-
     draw() {
-        ctx.fillStyle = COLORS.ground; ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = COLORS.sky; 
+        ctx.fillRect(0, 0, width, height);
+        
         ctx.save(); if (this.screenshake > 0 && !this.paused) ctx.translate((Math.random()-0.5)*this.screenshake, (Math.random()-0.5)*this.screenshake);
         
-        // [修改 3] 繪製分流道路視覺
+        const horizonY = height * CAMERA.horizonY;
+        ctx.fillStyle = COLORS.ground;
+        ctx.fillRect(0, horizonY, width, height - horizonY);
+
         ctx.strokeStyle = COLORS.grid; ctx.lineWidth = 2; ctx.beginPath();
-        const offsetZ = Math.floor(this.playerZ / 200) * 200;
-        for (let z = offsetZ; z < offsetZ + 2000; z += 200) {
-            const p1 = project({x: -350, y: 0, z: z}); const p2 = project({x: 350, y: 0, z: z});
-            if(p1.visible && p2.visible) { ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); }
+        const oz = Math.floor(this.playerZ / 200) * 200;
+        for (let z = oz; z < oz + 2000; z += 200) { 
+            const pL1 = project({x: -2000, y: 0, z: z}); 
+            const pL2 = project({x: -350, y: 0, z: z}); 
+            if(pL2.visible) { ctx.moveTo(pL1.x, pL1.y); ctx.lineTo(pL2.x, pL2.y); } 
+
+            const pR1 = project({x: 350, y: 0, z: z}); 
+            const pR2 = project({x: 2000, y: 0, z: z}); 
+            if(pR1.visible) { ctx.moveTo(pR1.x, pR1.y); ctx.lineTo(pR2.x, pR2.y); } 
         }
-        // 外側護欄
-        [-350, 350].forEach(x => {
-            const ps = project({x: x, y: 0, z: this.playerZ - 200}); const pe = project({x: x, y: 0, z: this.playerZ + 2000});
-            if(pe.visible) { ctx.moveTo(ps.x, ps.y); ctx.lineTo(pe.x, pe.y); }
-        });
         ctx.stroke();
-
-        // [修改 3] 中央分隔島 (中線)
-        const pMidS = project({x: 0, y: 0, z: this.playerZ - 200});
-        const pMidE = project({x: 0, y: 0, z: this.playerZ + 2000});
-        if(pMidE.visible) {
-            ctx.setLineDash([20, 20]);
-            ctx.strokeStyle = COLORS.median;
-            ctx.lineWidth = 4;
-            ctx.beginPath(); ctx.moveTo(pMidS.x, pMidS.y); ctx.lineTo(pMidE.x, pMidE.y); ctx.stroke();
-            ctx.setLineDash([]);
+        
+        ctx.strokeStyle = COLORS.median;
+        const markOffsetZ = Math.floor(this.playerZ / 150) * 150;
+        for (let z = markOffsetZ; z < markOffsetZ + 2000; z += 150) { 
+           const pStart = project({x: 0, y: 0, z: z});
+           const pEnd = project({x: 0, y: 0, z: z + 80}); 
+           if (pStart.visible && pEnd.visible) {
+               ctx.lineWidth = 8 * pStart.scale;
+               ctx.beginPath();
+               ctx.moveTo(pStart.x, pStart.y);
+               ctx.lineTo(pEnd.x, pEnd.y);
+               ctx.stroke();
+           }
         }
+        
+        const crowdRadius = this.getCrowdRadius();
+        ctx.beginPath();
+        for(let i=0; i<=32; i++) {
+            const theta = (i/32) * Math.PI * 2;
+            const px = this.playerX + Math.cos(theta) * crowdRadius;
+            const pz = this.playerZ + Math.sin(theta) * crowdRadius;
+            const proj = project({x: px, y: 5, z: pz});
+            if (proj.visible) {
+                if (i===0) ctx.moveTo(proj.x, proj.y);
+                else ctx.lineTo(proj.x, proj.y);
+            }
+        }
+        ctx.strokeStyle = 'rgba(241, 196, 15, 0.6)'; 
+        ctx.lineWidth = 3;
+        ctx.setLineDash([10, 10]);
+        ctx.stroke();
+        ctx.setLineDash([]);
 
-        let renderList = [];
-        this.soldiers.forEach(s => renderList.push({type: 's', obj: s, z: this.playerZ + s.localZ}));
-        this.enemies.forEach(e => renderList.push({type: 'e', obj: e, z: e.z}));
-        this.gates.forEach(g => renderList.push({type: 'g', obj: g, z: g.z}));
-        this.bullets.forEach(b => renderList.push({type: 'b', obj: b, z: b.z}));
-        this.particles.forEach(p => renderList.push({type: 'p', obj: p, z: p.z}));
-        this.decor.forEach(d => renderList.push({type: 'd', obj: d, z: d.z}));
-        this.missiles.forEach(m => renderList.push({type: 'm', obj: m, z: m.z}));
-        this.powerups.forEach(p => renderList.push({type: 'pu', obj: p, z: p.z}));
-        this.tanks.forEach(t => renderList.push({type: 't', obj: t, z: t.z}));
-        renderList.sort((a, b) => b.z - a.z);
-        renderList.forEach(item => item.obj.draw(ctx)); ctx.restore();
+        const borderMarkOffsetZ = Math.floor(this.playerZ / 100) * 100;
+        [-350, 350].forEach(x => {
+            for (let z = borderMarkOffsetZ; z < borderMarkOffsetZ + 2000; z += 100) {
+                const ps = project({x: x, y: 0, z: z});
+                const pe = project({x: x, y: 0, z: z + 100});
+                if(ps.visible && pe.visible) { 
+                    ctx.lineWidth = 12 * ps.scale;
+                    ctx.strokeStyle = COLORS.border; 
+                    ctx.beginPath(); ctx.moveTo(ps.x, ps.y); ctx.lineTo(pe.x, pe.y); ctx.stroke();
+                    
+                    ctx.lineWidth = 4 * ps.scale;
+                    ctx.strokeStyle = '#fff';
+                    ctx.globalAlpha = 0.5;
+                    ctx.stroke();
+                    ctx.globalAlpha = 1.0;
+                }
+            }
+        });
+
+        let rl = [];
+        this.soldiers.forEach(s => rl.push({o: s, z: this.playerZ + s.localZ})); this.enemies.forEach(e => rl.push({o: e, z: e.z}));
+        this.gates.forEach(g => rl.push({o: g, z: g.z})); this.bullets.forEach(b => rl.push({o: b, z: b.z}));
+        this.missiles.forEach(m => rl.push({o: m, z: m.z})); this.powerups.forEach(p => rl.push({o: p, z: p.z}));
+        this.tanks.forEach(t => rl.push({o: t, z: t.z})); this.particles.forEach(p => rl.push({o: p, z: p.z}));
+        this.decor.forEach(d => rl.push({o: d, z: d.z}));
+        this.traps.forEach(t => rl.push({o: t, z: t.z})); 
+        rl.sort((a, b) => b.z - a.z); rl.forEach(i => i.o.draw(ctx)); ctx.restore();
     }
-
-    loop() {
-        if (!this.running) return;
-        if (!this.paused) { this.update(); this.draw(); this.animationId = requestAnimationFrame(() => this.loop()); } 
-    }
-
+    loop() { if (this.running && !this.paused) { this.update(); this.draw(); this.animationId = requestAnimationFrame(() => this.loop()); } }
     gameOver() {
-        this.running = false; if (this.animationId) cancelAnimationFrame(this.animationId);
-        document.getElementById('final-score').innerText = Math.floor(this.playerZ / 10); 
-        document.getElementById('game-over').classList.remove('hidden');
-        // [修改 1] 遊戲結束也隱藏右下按鈕，維持畫面整潔
-        document.getElementById('ingame-controls').classList.add('hidden');
+        this.running = false; document.getElementById('final-score').innerText = Math.floor(this.playerZ / 10); 
+        document.getElementById('game-over').classList.remove('hidden'); document.getElementById('ingame-controls').classList.add('hidden');
     }
 }
 const game = new Game();
